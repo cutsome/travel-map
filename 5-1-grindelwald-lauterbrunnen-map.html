@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5/1 グリンデルワルト＆ラウターブルンネン 1日マップ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; }
+  #map { width: 100%; height: 100vh; }
+
+  .legend {
+    background: white; padding: 12px 16px; border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15); line-height: 2;
+    max-width: 280px; font-size: 12.5px;
+  }
+  .legend h3 { font-size: 14px; margin-bottom: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-line { width: 24px; height: 0; flex-shrink: 0; }
+  .legend-line.train { border-top: 4px solid #e74c3c; }
+  .legend-line.bus { border-top: 4px solid #3498db; }
+  .legend-line.gondola { border-top: 4px dashed #9b59b6; }
+  .legend-line.walk { border-top: 4px dashed #27ae60; }
+  .legend-line.scenic { border-top: 4px solid #e67e22; }
+
+  .custom-marker { background: none; border: none; }
+  .marker-pin {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35); border: 2.5px solid white;
+  }
+  .marker-pin.start { background: #f39c12; width: 32px; height: 32px; font-size: 14px; }
+  .marker-pin.gondola { background: #9b59b6; }
+  .marker-pin.train { background: #e74c3c; }
+  .marker-pin.walk { background: #27ae60; }
+  .marker-pin.bus { background: #3498db; }
+  .marker-pin.scenic { background: #e67e22; }
+
+  .popup-content { font-size: 13px; line-height: 1.7; min-width: 220px; }
+  .popup-content h4 { font-size: 14px; margin-bottom: 2px; }
+  .popup-content .time { color: #e74c3c; font-weight: 600; }
+  .popup-content .transport { color: #555; font-size: 12px; margin: 2px 0; }
+  .popup-content .desc { color: #444; font-size: 12px; }
+
+  .title-box {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; background: white; padding: 8px 20px; border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    font-size: 15px; font-weight: 700; white-space: nowrap;
+  }
+
+  .timeline {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; background: white; padding: 8px 14px; border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    font-size: 11.5px; display: flex; gap: 4px; align-items: center;
+    flex-wrap: wrap; max-width: 95vw; justify-content: center;
+  }
+  .tl-item { display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .tl-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .tl-arrow { color: #aaa; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="title-box">🗺️ 5/1（金）グリンデルワルト＆ラウターブルンネン 1日ルート</div>
+<div id="map"></div>
+<div class="timeline">
+  <div class="tl-item"><div class="tl-dot" style="background:#f39c12"></div>❶ Eiger Lodge</div>
+  <div class="tl-arrow">🚶</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#9b59b6"></div>❷ フィルスト</div>
+  <div class="tl-arrow">🚶🚃</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#e74c3c"></div>❸ ラウターブルンネン</div>
+  <div class="tl-arrow">🚶</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#27ae60"></div>❹ 滝</div>
+  <div class="tl-arrow">🚌</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#3498db"></div>❺ シュテッヘルベルク</div>
+  <div class="tl-arrow">🚡</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#9b59b6"></div>❻ ギンメルヴァルト</div>
+  <div class="tl-arrow">🚡</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#3498db"></div>❺</div>
+  <div class="tl-arrow">🚶</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#e74c3c"></div>❸</div>
+  <div class="tl-arrow">🚃</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#e67e22"></div>❼❽❾ 絶景帰還</div>
+  <div class="tl-arrow">🚡</div>
+  <div class="tl-item"><div class="tl-dot" style="background:#f39c12"></div>❶</div>
+</div>
+
+<script>
+const map = L.map('map', { zoomControl: true }).setView([46.59, 7.96], 13);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  maxZoom: 18, subdomains: 'abcd'
+}).addTo(map);
+
+// ===== SPOTS =====
+// Grindelwald Terminal/Grund is WEST and DOWNHILL from the village center
+const spots = [
+  {
+    id: "❶", name: "Eiger Lodge / Grindelwald Terminal",
+    lat: 46.623605, lng: 8.021769, type: "start",
+    time: "08:00出発 / 18:00〜18:30帰着",
+    transport: "🏨 宿泊地（スタート＆ゴール）",
+    desc: "Terminal Coop(8:00)で行動食買い出し<br>Eiger Express到着駅の目の前<br>夜: 日本食を食べて即寝"
+  },
+  {
+    id: "❷", name: "フィルスト展望台（2,168m）",
+    lat: 46.659865, lng: 8.053821, type: "gondola",
+    time: "08:30〜10:30",
+    transport: "🚡 ゴンドラ（Firstbahn、片道約25分）",
+    desc: "フィルスト・クリフウォーク（吊橋）<br>アイガー・メンヒ・ユングフラウの絶景<br>HFC半額 CHF 38/人（往復）"
+  },
+  {
+    id: "", name: "Firstbahnゴンドラ乗り場",
+    lat: 46.625125, lng: 8.0417791, type: "gondola",
+    time: "（Eiger Lodgeから徒歩15分）",
+    transport: "🚶 Terminal→村中心へ徒歩で移動",
+    desc: "フィルスト行きゴンドラはここから乗車<br>Grindelwald駅のすぐ近く"
+  },
+  {
+    id: "❸", name: "ラウターブルンネン駅",
+    lat: 46.5984189, lng: 7.9080885, type: "train",
+    time: "11:40着 / 16:00〜16:30発（帰路）",
+    transport: "🚃 グリンデルワルトからR61で39分",
+    desc: "行き: Zweilütschinen乗換で到着<br>帰り: 谷底ウォーク後、ここから絶景ルートへ"
+  },
+  {
+    id: "❹", name: "シュタウプバッハの滝",
+    lat: 46.5896318, lng: 7.9052932, type: "walk",
+    time: "11:45（駅から徒歩5分）",
+    transport: "🚶 駅のすぐ南",
+    desc: "高さ約300m、5月は水量最大！<br>裏側トンネルあり（時間あれば+30分）<br>無料"
+  },
+  {
+    id: "❺", name: "シュテッヘルベルク（Schilthornbahn駅）",
+    lat: 46.5552399, lng: 7.9016557, type: "bus",
+    time: "12:20着 / 14:00 谷底ウォーク出発",
+    transport: "🚌 バス#141（ラウターブルンネンから12〜20分）",
+    desc: "谷の最奥部、ケーブルカー乗り場<br>ギンメルヴァルトへはここから"
+  },
+  {
+    id: "❻", name: "ギンメルヴァルト（1,367m）",
+    lat: 46.5459095, lng: 7.8916164, type: "gondola",
+    time: "12:30〜13:30",
+    transport: "🚡 ケーブルカー（5分）",
+    desc: "崖上の車両禁止の村（人口約120人）<br>1600年代のシャレー、大パノラマ<br>テラスでランチ（Pension Gimmelwald等）"
+  },
+  {
+    id: "❼", name: "ヴェンゲン（帰路①）",
+    lat: 46.6051817, lng: 7.9206191, type: "scenic",
+    time: "帰路: 登山鉄道で崖を登る（13分）",
+    transport: "🚃 WAB登山鉄道（ラック式）",
+    desc: "ラウターブルンネンから一気に500m登る<br>谷を見下ろす絶景車窓"
+  },
+  {
+    id: "❽", name: "クライネシャイデック（2,061m）",
+    lat: 46.585062, lng: 7.9607507, type: "scenic",
+    time: "帰路② ★ここでゆっくり！",
+    transport: "🚃 WAB登山鉄道（25分）",
+    desc: "アイガー北壁の大パノラマ！<br>降りて景色をゆっくり堪能<br>標高2,061m、防寒しっかり"
+  },
+  {
+    id: "❾", name: "Eigergletscher（2,328m）",
+    lat: 46.5747007, lng: 7.9746734, type: "scenic",
+    time: "帰路③ → Eiger Expressで下山",
+    transport: "🚃→🚡 ここでEiger Expressに乗換",
+    desc: "※5/1〜8/31は座席予約必要<br>Eiger Express（15分）でTerminalへ直行"
+  }
+];
+
+// Marker creation
+function makeIcon(spot) {
+  const label = spot.id || '•';
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="marker-pin ${spot.type}">${label}</div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16]
+  });
+}
+
+spots.forEach(s => {
+  L.marker([s.lat, s.lng], { icon: makeIcon(s) }).addTo(map)
+    .bindPopup(`<div class="popup-content">
+      <h4>${s.id} ${s.name}</h4>
+      <div class="time">${s.time}</div>
+      <div class="transport">${s.transport}</div>
+      <div class="desc">${s.desc}</div>
+    </div>`, { maxWidth: 300 });
+});
+
+// ===== ROUTE LINES =====
+
+// ❶→ゴンドラ乗り場: 徒歩 Eiger Lodge → Firstbahn base (village center, ~15min walk)
+L.polyline([
+  [46.623605, 8.021769],  // Eiger Lodge (Grundstrasse 58)
+  [46.6240, 8.0340],
+  [46.625125, 8.0417791]   // Firstbahn base station
+], { color: '#888', weight: 2.5, opacity: 0.6, dashArray: '4,4' }).addTo(map)
+  .bindTooltip('🚶 徒歩15分', { permanent: false });
+
+// ゴンドラ乗り場→❷: ゴンドラ Firstbahn base → First summit
+L.polyline([
+  [46.625125, 8.0417791],  // Firstbahn base
+  [46.6350, 8.0450],
+  [46.6480, 8.0500],
+  [46.659865, 8.053821]   // First summit
+], { color: '#9b59b6', weight: 3.5, opacity: 0.8, dashArray: '8,6' }).addTo(map)
+  .bindTooltip('🚡 フィルストゴンドラ（25分）', { permanent: false });
+
+// 電車: Grindelwald駅 → Zweilütschinen → Lauterbrunnen
+// Route goes WEST from Grindelwald to junction, then SOUTH to Lauterbrunnen
+L.polyline([
+  [46.625125, 8.0417791],  // Grindelwald BOB station
+  [46.6260, 8.0250],
+  [46.6270, 8.0100],
+  [46.6290, 7.9900],
+  [46.6310, 7.9700],
+  [46.6330, 7.9500],
+  [46.6340, 7.9300],  // approaching Zweilütschinen
+  [46.6335, 7.9100],  // Zweilütschinen junction
+  [46.6280, 7.9060],
+  [46.6200, 7.9040],
+  [46.6100, 7.9040],
+  [46.6000, 7.9060],
+  [46.5984189, 7.9080885]   // Lauterbrunnen
+], { color: '#e74c3c', weight: 4, opacity: 0.7 }).addTo(map)
+  .bindTooltip('🚃 R61 グリンデルワルト→ラウターブルンネン（39分）', { permanent: false });
+
+// ❸→❹: 徒歩 駅→シュタウプバッハの滝
+L.polyline([
+  [46.5984189, 7.9080885],
+  [46.5896318, 7.9052932]
+], { color: '#27ae60', weight: 2.5, opacity: 0.7, dashArray: '4,4' }).addTo(map);
+
+// ❹→❺: バス ラウターブルンネン→シュテッヘルベルク (valley road going SOUTH)
+L.polyline([
+  [46.5896318, 7.9052932],  // Staubbach area
+  [46.5860, 7.9050],
+  [46.5800, 7.9045],
+  [46.5740, 7.9040],
+  [46.5680, 7.9035],
+  [46.5620, 7.9025],
+  [46.5552399, 7.9016557]   // Stechelberg
+], { color: '#3498db', weight: 4, opacity: 0.7 }).addTo(map)
+  .bindTooltip('🚌 バス#141（12〜20分）', { permanent: false });
+
+// ❺→❻: ケーブルカー シュテッヘルベルク→ギンメルヴァルト (up the WEST cliff)
+L.polyline([
+  [46.5552399, 7.9016557],  // Stechelberg
+  [46.5500, 7.8960],
+  [46.5459095, 7.8916164]   // Gimmelwald
+], { color: '#9b59b6', weight: 3.5, opacity: 0.8, dashArray: '8,6' }).addTo(map)
+  .bindTooltip('🚡 ケーブルカー（5分）', { permanent: false });
+
+// ❺→❸: 谷底ウォーク (valley floor, following river NORTH)
+L.polyline([
+  [46.5552399, 7.9016557],  // Stechelberg
+  [46.5580, 7.9020],
+  [46.5620, 7.9025],
+  [46.5660, 7.9030],
+  [46.5700, 7.9035],
+  [46.5740, 7.9040],
+  [46.5780, 7.9045],
+  [46.5820, 7.9050],
+  [46.5860, 7.9050],
+  [46.5896318, 7.9052932],  // Staubbach
+  [46.5984189, 7.9080885]   // Lauterbrunnen station
+], { color: '#27ae60', weight: 6, opacity: 0.6, dashArray: '12,8' }).addTo(map)
+  .bindTooltip('🚶 谷底ウォーク 8.2km（約2〜2.5h）', { permanent: false, sticky: true });
+
+// 谷底ウォークラベル
+L.marker([46.573, 7.9100], {
+  icon: L.divIcon({
+    className: '',
+    html: '<div style="background:rgba(39,174,96,0.9);color:white;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.2)">🚶 谷底ウォーク 8.2km</div>',
+    iconSize: [140, 24], iconAnchor: [70, 12]
+  })
+}).addTo(map);
+
+// ===== 帰路（絶景ルート） =====
+
+// ❸→❼: WAB登山鉄道 ラウターブルンネン→ヴェンゲン (steep climb UP east cliff)
+L.polyline([
+  [46.5984189, 7.9080885],  // Lauterbrunnen (valley floor ~800m)
+  [46.5995, 7.9100],
+  [46.6010, 7.9130],
+  [46.6025, 7.9160],
+  [46.6040, 7.9185],
+  [46.6051817, 7.9206191]   // Wengen (~1274m, up on the shelf)
+], { color: '#e67e22', weight: 4, opacity: 0.8 }).addTo(map)
+  .bindTooltip('🚃 WAB登山鉄道（13分）一気に500m登る', { permanent: false });
+
+// ❼→❽: WAB登山鉄道 ヴェンゲン→クライネシャイデック (continue climbing SE)
+L.polyline([
+  [46.6051817, 7.9206191],  // Wengen
+  [46.6040, 7.9300],
+  [46.6010, 7.9380],
+  [46.5970, 7.9450],
+  [46.5920, 7.9530],
+  [46.585062, 7.9607507]   // Kleine Scheidegg (2061m)
+], { color: '#e67e22', weight: 4, opacity: 0.8 }).addTo(map)
+  .bindTooltip('🚃 WAB登山鉄道（25分）', { permanent: false });
+
+// ❽→❾: JB列車 クライネシャイデック→Eigergletscher
+L.polyline([
+  [46.585062, 7.9607507],  // Kleine Scheidegg
+  [46.5810, 7.9660],
+  [46.5747007, 7.9746734]   // Eigergletscher
+], { color: '#e67e22', weight: 4, opacity: 0.8 }).addTo(map)
+  .bindTooltip('🚃 JB列車（5分）', { permanent: false });
+
+// ❾→❶: Eiger Express ゴンドラ Eigergletscher→Grindelwald Terminal
+L.polyline([
+  [46.5747007, 7.9746734],  // Eigergletscher (2328m)
+  [46.5850, 7.9870],
+  [46.5960, 7.9980],
+  [46.6060, 8.0070],
+  [46.6150, 8.0150],
+  [46.623605, 8.021769]   // Eiger Lodge (Grundstrasse 58)
+], { color: '#9b59b6', weight: 4, opacity: 0.8, dashArray: '8,6' }).addTo(map)
+  .bindTooltip('🚡 Eiger Express（15分）', { permanent: false });
+
+// ===== LEGEND =====
+const legend = L.control({ position: 'topright' });
+legend.onAdd = function() {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = `
+    <h3>移動手段</h3>
+    <div class="legend-item"><div class="legend-line train"></div>🚃 電車（BOB）</div>
+    <div class="legend-item"><div class="legend-line scenic"></div>🚃 登山鉄道（帰路）</div>
+    <div class="legend-item"><div class="legend-line bus"></div>🚌 バス</div>
+    <div class="legend-item"><div class="legend-line gondola"></div>🚡 ゴンドラ/ケーブルカー</div>
+    <div class="legend-item"><div class="legend-line walk"></div>🚶 徒歩（谷底ウォーク）</div>
+    <div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;font-size:11px;color:#666">
+      📍 ピンをクリック → 詳細表示<br>
+      ━ 線にホバー → ルート名表示
+    </div>
+  `;
+  return div;
+};
+legend.addTo(map);
+
+// Fit bounds with padding
+const allCoords = spots.map(s => [s.lat, s.lng]);
+map.fitBounds(L.latLngBounds(allCoords), { padding: [60, 60] });
+</script>
+</body>
+</html>
