@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5/2 グリンデルワルト → ツェルマット & ゴルナーグラート</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif; }
+  #map { width: 100%; height: 100vh; }
+
+  .title-bar {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; background: rgba(255,255,255,0.95); border-radius: 12px;
+    padding: 10px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    text-align: center; backdrop-filter: blur(8px);
+  }
+  .title-bar h1 { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; }
+  .title-bar p { font-size: 12px; color: #666; }
+
+  .timeline-bar {
+    position: absolute; bottom: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+    padding: 14px 20px; box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .timeline-inner { display: flex; align-items: center; gap: 4px; min-width: max-content; }
+  .tl-spot {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 8px; background: #f8f9fa;
+    flex-shrink: 0;
+  }
+  .tl-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .tl-info { display: flex; flex-direction: column; }
+  .tl-name { font-size: 11px; font-weight: 600; color: #333; }
+  .tl-time { font-size: 10px; color: #888; }
+  .tl-arrow {
+    font-size: 14px; color: #999; flex-shrink: 0; padding: 0 2px;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .tl-arrow-label { font-size: 9px; color: #aaa; }
+
+  .marker-icon {
+    width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px; font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3); position: relative;
+  }
+  .marker-icon::after {
+    content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+  }
+
+  .legend {
+    background: rgba(255,255,255,0.95); border-radius: 10px;
+    padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-size: 12px; line-height: 1.8;
+  }
+  .legend-title { font-weight: 700; margin-bottom: 4px; color: #333; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .legend-line {
+    width: 24px; height: 3px; border-radius: 2px; flex-shrink: 0;
+  }
+  .legend-line.dashed {
+    background: repeating-linear-gradient(90deg, currentColor 0, currentColor 5px, transparent 5px, transparent 9px);
+    height: 3px;
+  }
+
+  .leaflet-popup-content { font-size: 13px; line-height: 1.6; }
+  .popup-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .popup-meta { color: #666; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <h1>🇨🇭 Day 4 — 5/2（土）グリンデルワルト → ゴルナーグラート</h1>
+  <p>ツェルマット移動 & マッターホルン展望台ランチ</p>
+</div>
+
+<div id="map"></div>
+
+<div class="timeline-bar">
+  <div class="timeline-inner" id="timeline"></div>
+</div>
+
+<script>
+const spots = [
+  {
+    id: 1, name: 'グリンデルワルト駅', nameEn: 'Grindelwald',
+    lat: 46.6244, lng: 8.0335, type: 'start',
+    time: '09:17発', transport: null,
+    desc: '出発！乗換3回の3時間の旅'
+  },
+  {
+    id: 2, name: 'インターラーケン・オスト駅', nameEn: 'Interlaken Ost',
+    lat: 46.6912, lng: 7.8693, type: 'transfer',
+    time: '乗換①', transport: 'mountain',
+    desc: 'BOB登山鉄道で移動（約30分）'
+  },
+  {
+    id: 3, name: 'シュピーツ駅', nameEn: 'Spiez',
+    lat: 46.6867, lng: 7.6799, type: 'transfer',
+    time: '乗換②', transport: 'train',
+    desc: 'トゥーン湖沿いの絶景区間'
+  },
+  {
+    id: 4, name: 'フィスプ駅', nameEn: 'Visp',
+    lat: 46.2938, lng: 7.8816, type: 'transfer',
+    time: '乗換③', transport: 'train',
+    desc: 'ここからMGB線でツェルマットへ'
+  },
+  {
+    id: 5, name: 'ツェルマット駅', nameEn: 'Zermatt',
+    lat: 46.0242, lng: 7.7481, type: 'station',
+    time: '12:17着', transport: 'mountain',
+    desc: '到着！車の入れない山岳リゾート'
+  },
+  {
+    id: 6, name: 'ホテル ヴァリザーホフ', nameEn: 'Hotel Walliserhof',
+    lat: 46.0220, lng: 7.7469, type: 'hotel',
+    time: '12:30', transport: 'walk',
+    desc: '荷物を預けてすぐゴルナーグラートへ！'
+  },
+  {
+    id: 7, name: 'ゴルナーグラート山頂', nameEn: 'Gornergrat (3,089m)',
+    lat: 45.9835, lng: 7.7847, type: 'summit',
+    time: '13:15〜15:00', transport: 'scenic',
+    desc: '🏔️ マッターホルン大パノラマ！山頂レストランでランチ'
+  }
+];
+
+const colors = {
+  start:    '#2ecc71',
+  transfer: '#95a5a6',
+  station:  '#e74c3c',
+  hotel:    '#f39c12',
+  summit:   '#e67e22'
+};
+
+const transportStyles = {
+  mountain: { color: '#e67e22', dash: null, label: '🚃 登山鉄道', emoji: '🚃' },
+  train:    { color: '#e74c3c', dash: null, label: '🚃 電車', emoji: '🚃' },
+  walk:     { color: '#27ae60', dash: '8, 8', label: '🚶 徒歩', emoji: '🚶' },
+  scenic:   { color: '#9b59b6', dash: null, label: '🚃 ゴルナーグラート鉄道', emoji: '🚃' }
+};
+
+// Initialize map
+const map = L.map('map', { zoomControl: false });
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+  maxZoom: 19
+}).addTo(map);
+
+// Add markers
+const allCoords = [];
+spots.forEach(spot => {
+  allCoords.push([spot.lat, spot.lng]);
+
+  const bgColor = colors[spot.type] || '#3498db';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="marker-icon" style="background:${bgColor};">
+             ${spot.id}
+             <style>.marker-icon[style*="${bgColor}"]::after{border-top-color:${bgColor} !important; border-top: 8px solid ${bgColor};}</style>
+           </div>`,
+    iconSize: [28, 34],
+    iconAnchor: [14, 34],
+    popupAnchor: [0, -36]
+  });
+
+  L.marker([spot.lat, spot.lng], { icon })
+    .addTo(map)
+    .bindPopup(`
+      <div class="popup-title">${spot.id}. ${spot.name}</div>
+      <div class="popup-meta">${spot.nameEn}</div>
+      <div style="margin-top:6px">${spot.desc}</div>
+      <div class="popup-meta" style="margin-top:4px">⏰ ${spot.time}</div>
+    `);
+});
+
+// Draw route lines with intermediate points for natural curves
+const routes = [
+  { from: 0, to: 1, type: 'mountain', mid: [[46.660, 7.960], [46.670, 7.910]] },
+  { from: 1, to: 2, type: 'train', mid: [[46.700, 7.830], [46.710, 7.760]] },
+  { from: 2, to: 3, type: 'train', mid: [[46.620, 7.720], [46.500, 7.790], [46.380, 7.850]] },
+  { from: 3, to: 4, type: 'mountain', mid: [[46.220, 7.840], [46.140, 7.800], [46.080, 7.770]] },
+  { from: 4, to: 5, type: 'walk', mid: [] },
+  { from: 5, to: 6, type: 'scenic', mid: [[46.012, 7.755], [46.000, 7.770], [45.993, 7.780]] }
+];
+
+routes.forEach(route => {
+  const from = spots[route.from];
+  const to = spots[route.to];
+  const style = transportStyles[route.type];
+
+  const points = [[from.lat, from.lng], ...route.mid, [to.lat, to.lng]];
+
+  const line = L.polyline(points, {
+    color: style.color,
+    weight: 4,
+    opacity: 0.8,
+    dashArray: style.dash
+  }).addTo(map);
+
+  line.bindTooltip(`${style.emoji} ${from.name} → ${to.name}`, {
+    sticky: true, direction: 'top', offset: [0, -10]
+  });
+});
+
+// Fit bounds
+map.fitBounds(L.latLngBounds(allCoords), { padding: [60, 60] });
+
+// Legend
+const legend = L.control({ position: 'topright' });
+legend.onAdd = function() {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = `
+    <div class="legend-title">交通手段</div>
+    <div class="legend-item"><span class="legend-line" style="background:#e67e22"></span>🚃 登山鉄道</div>
+    <div class="legend-item"><span class="legend-line" style="background:#e74c3c"></span>🚃 電車（IC）</div>
+    <div class="legend-item"><span class="legend-line" style="background:#9b59b6"></span>🚃 ゴルナーグラート鉄道</div>
+    <div class="legend-item"><span class="legend-line dashed" style="color:#27ae60"></span>🚶 徒歩</div>
+    <hr style="margin:6px 0;border:none;border-top:1px solid #eee">
+    <div class="legend-item"><span class="tl-dot" style="background:#2ecc71;width:16px;height:16px;font-size:9px">1</span> 出発</div>
+    <div class="legend-item"><span class="tl-dot" style="background:#95a5a6;width:16px;height:16px;font-size:9px">2</span> 乗換駅</div>
+    <div class="legend-item"><span class="tl-dot" style="background:#e74c3c;width:16px;height:16px;font-size:9px">5</span> 到着駅</div>
+    <div class="legend-item"><span class="tl-dot" style="background:#f39c12;width:16px;height:16px;font-size:9px">6</span> ホテル</div>
+    <div class="legend-item"><span class="tl-dot" style="background:#e67e22;width:16px;height:16px;font-size:9px">7</span> 展望台</div>
+  `;
+  return div;
+};
+legend.addTo(map);
+
+// Timeline
+const timelineEl = document.getElementById('timeline');
+spots.forEach((spot, i) => {
+  const bgColor = colors[spot.type] || '#3498db';
+
+  const spotEl = document.createElement('div');
+  spotEl.className = 'tl-spot';
+  spotEl.innerHTML = `
+    <div class="tl-dot" style="background:${bgColor}">${spot.id}</div>
+    <div class="tl-info">
+      <span class="tl-name">${spot.name}</span>
+      <span class="tl-time">${spot.time}</span>
+    </div>
+  `;
+  spotEl.style.cursor = 'pointer';
+  spotEl.addEventListener('click', () => {
+    map.setView([spot.lat, spot.lng], 14);
+  });
+  timelineEl.appendChild(spotEl);
+
+  if (i < spots.length - 1) {
+    const nextSpot = spots[i + 1];
+    const style = transportStyles[nextSpot.transport];
+    if (style) {
+      const arrowEl = document.createElement('div');
+      arrowEl.className = 'tl-arrow';
+      arrowEl.innerHTML = `<span>${style.emoji}</span><span>→</span>`;
+      timelineEl.appendChild(arrowEl);
+    }
+  }
+});
+</script>
+</body>
+</html>
